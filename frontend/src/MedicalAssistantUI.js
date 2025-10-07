@@ -287,6 +287,12 @@ const handleExtract = async () => {
               console.log('All articles processed. Total articles:', processedArticles.length);
               
               // First, send the document message
+              console.log('[MEDICAL_UI] Creating document message with:', {
+                processedArticlesCount: processedArticles.length,
+                currentProgress: currentProgress,
+                articlesData: processedArticles
+              });
+              
               const documentsContent = {
                 type: 'document',
                 content: {
@@ -294,6 +300,15 @@ const handleExtract = async () => {
                   currentProgress: currentProgress
                 }
               };
+              
+              console.log('[MEDICAL_UI] Document message structure:', {
+                type: documentsContent.type,
+                hasContent: !!documentsContent.content,
+                contentKeys: Object.keys(documentsContent.content),
+                articlesInContent: documentsContent.content.articles?.length,
+                fullContent: JSON.stringify(documentsContent, null, 2)
+              });
+              
               console.log('Sending document message to handleSendMessage:', JSON.stringify(documentsContent, null, 2));
               await handleSendMessage(documentsContent);
               console.log('Document message sent successfully');

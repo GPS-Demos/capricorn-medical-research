@@ -23,9 +23,22 @@ const ArticleResults = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(initialExpanded);
 
+  // Debug logging
+  console.log('[ArticleResults] Rendering with props:', {
+    articlesLength: articles?.length,
+    hasArticles: !!articles?.length,
+    currentProgress,
+    totalArticles,
+    processedArticles,
+    articles: articles
+  });
+
   if (!articles?.length && !currentProgress) {
+    console.log('[ArticleResults] Returning null - no articles and no progress');
     return null;
   }
+
+  console.log('[ArticleResults] Will render component');
 
   return (
     <div className="mt-4 bg-surface-50 shadow-lg rounded-lg p-4">
@@ -113,13 +126,7 @@ const ArticleResults = ({
                     <td className="px-4 py-2 text-xs border-t text-gray-500">
                       <button
                         onClick={() => {
-                          const width = 800;
-                          const height = 600;
-                          const left = (window.screen.width - width) / 2;
-                          const top = (window.screen.height - height) / 2;
-                          const newWindow = window.open('', '_blank', 
-                            `width=${width},height=${height},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no`
-                          );
+                          const newWindow = window.open('', '_blank');
                           newWindow.document.write(`
                             <!DOCTYPE html>
                             <html>
@@ -149,13 +156,7 @@ const ArticleResults = ({
                     <td className="px-4 py-2 text-xs border-t text-gray-500">
                       <button
                         onClick={() => {
-                          const width = 800;
-                          const height = 600;
-                          const left = (window.screen.width - width) / 2;
-                          const top = (window.screen.height - height) / 2;
-                          const newWindow = window.open('', '_blank', 
-                            `width=${width},height=${height},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no`
-                          );
+                          const newWindow = window.open('', '_blank');
                           newWindow.document.write(`
                             <!DOCTYPE html>
                             <html>

@@ -12,3 +12,6 @@ bigquery-service-account.json
 # Firebase configuration
 firestore.rules
 .firebaserc
+
+# Test debug files
+test-debug/

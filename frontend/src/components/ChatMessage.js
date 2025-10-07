@@ -81,6 +81,18 @@ const ChatMessage = React.forwardRef(({ message, showInitialCase }, ref) => {
         <div className={`text-sm overflow-x-auto ${message.isUser ? 'text-white !important' : ''}`}>
           {(() => {
             if (isDocument) {
+              console.log('[CHAT_DEBUG] Rendering ArticleResults with:', {
+                id: message.id,
+                type: message.type,
+                hasContent: !!message.content,
+                contentType: typeof message.content,
+                hasArticles: !!message.articles,
+                articlesLength: message.articles?.length,
+                currentProgress: message.currentProgress,
+                messageKeys: Object.keys(message),
+                fullMessage: message
+              });
+              
               return (
                 <ArticleResults 
                   currentProgress={message.currentProgress}
