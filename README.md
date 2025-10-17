@@ -124,6 +124,26 @@ This creates `.env.yaml` files for all Cloud Functions:
 
 **Note**: The `.env.yaml` files are already in `.gitignore` to prevent committing sensitive data.
 
+**Environment Variables Reference:**
+
+Each Cloud Function uses specific environment variables configured in its `.env.yaml` file:
+
+- **Common variables across all functions:**
+  - `GCP_PROJECT`: Your Google Cloud Project ID
+  - `FIRESTORE_DATABASE_ID`: The Firestore database ID (e.g., "capricorn-prod")
+  - `CLOUD_FUNCTIONS_REGION`: The region where functions are deployed
+
+- **BigQuery-specific variables:**
+  - `BIGQUERY_PROJECT_ID`: Project ID containing BigQuery datasets (defaults to GCP_PROJECT)
+  - `PMID_DATASET`: Dataset name for PubMed articles (e.g., "pubmed")
+  - `JOURNAL_DATASET`: Dataset name for journal rankings (e.g., "journal_rank")
+
+- **Function-specific variables:**
+  - `SENDGRID_API_KEY`: (capricorn-feedback only) API key for sending feedback emails
+  - Additional model-specific configurations for Gemini AI
+
+The setup script (`setup-backend-config.sh`) automatically creates these files with the correct values based on your input.
+
 #### 2.2 Deploy Cloud Functions
 
 Deploy each function with its configuration:
@@ -164,7 +184,7 @@ gcloud functions deploy process-lab \
 
 # Retrieve Full Articles
 cd ../capricorn-retrieve-full-articles
-gcloud functions deploy retrieve-full-articles \
+gcloud functions deploy retrieve-full-articles-live-pmc-text-embeddings-005 \
   --gen2 \
   --runtime=python312 \
   --region=YOUR_REGION \
@@ -280,7 +300,7 @@ export REGION=YOUR_REGION
 echo "Collecting Cloud Function URLs..."
 REDACT_URL=$(gcloud functions describe redact-sensitive-info --region=$REGION --format='value(serviceConfig.uri)')
 PROCESS_LAB_URL=$(gcloud functions describe process-lab --region=$REGION --format='value(serviceConfig.uri)')
-RETRIEVE_ARTICLES_URL=$(gcloud functions describe retrieve-full-articles --region=$REGION --format='value(serviceConfig.uri)')
+RETRIEVE_ARTICLES_URL=$(gcloud functions describe retrieve-full-articles-live-pmc-text-embeddings-005 --region=$REGION --format='value(serviceConfig.uri)')
 FINAL_ANALYSIS_URL=$(gcloud functions describe final-analysis --region=$REGION --format='value(serviceConfig.uri)')
 CHAT_URL=$(gcloud functions describe chat --region=$REGION --format='value(serviceConfig.uri)')
 FEEDBACK_URL=$(gcloud functions describe send-feedback-email --region=$REGION --format='value(serviceConfig.uri)')
@@ -317,7 +337,46 @@ echo "✓ Saved URLs to function-urls.txt for reference"
 
 The application requires BigQuery datasets with PubMed article embeddings and metadata.
 
-#### 3.1 Service Account Setup
+#### 3.1 Journal Impact Factor Dataset Setup
+
+The application uses journal impact factor data (SJR scores) to rank articles. The repository includes a pre-downloaded SCImago Journal Rank CSV file.
+
+**Prerequisites:**
+- Ensure you have a Python virtual environment set up
+- Ensure you have the environment variables from section 1 still set
+
+**Load the journal data into BigQuery:**
+
+```bash
+# Create and/or activate Python virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install required dependencies
+pip install google-cloud-bigquery
+
+# Navigate to the function directory and run the loading script
+cd backend/capricorn-retrieve-full-articles
+python load_journal_data_to_bq.py \
+  --project-id $BIGQUERY_PROJECT_ID \
+  --dataset-id journal_rank \
+  --table-id scimagojr_2024 \
+  --csv-file scimagojr_2024.csv
+```
+
+This script will:
+- Create a `journal_rank` dataset if it doesn't exist
+- Load the SCImago journal data into a table named `scimagojr_2024`
+- Display sample data and confirm successful loading
+
+**Verify the data loaded correctly:**
+```bash
+# Check the record count (should show ~29,000+ journals)
+bq query --use_legacy_sql=false \
+"SELECT COUNT(*) as journal_count FROM \`$BIGQUERY_PROJECT_ID.journal_rank.scimagojr_2024\`"
+```
+
+#### 3.2 Service Account Setup
 
 1. Create a service account:
    ```bash

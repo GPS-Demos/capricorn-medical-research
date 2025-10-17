@@ -17,7 +17,7 @@
 export const retrieveAndAnalyzeArticles = async (disease, events, methodologyContent, onProgress, numArticles = 15) => {
   try {
     // Step 1: Get PMIDs and analysis from first cloud function
-    const response = await fetch(`${API_BASE_URL}/capricorn-retrieve-full-articles`, {
+    const response = await fetch(`https://us-central1-gemini-med-lit-review.cloudfunctions.net/retrieve-full-articles-live-pmc-text-embeddings-005`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -41,7 +41,7 @@ def fetch_journal_impact_data():
       `title`,
       `sjr`
     FROM
-      `{project_id}.{journal_dataset}.scimagojr_2023`
+      `{project_id}.{journal_dataset}.scimagojr_2024`
     ORDER BY 
       sjr DESC
     """
@@ -384,8 +384,8 @@ def analyze_with_gemini(article_text, pmcid, methodology_content=None, disease=N
 def create_bq_query(events_text, num_articles=15):
     project_id = os.environ.get('BIGQUERY_PROJECT_ID', 'playground-439016')
     pmid_dataset = os.environ.get('PMID_DATASET', 'pmid_uscentral')
-    # Use the pre-joined table from the same project/dataset
-    pubmed_table = f'{project_id}.{pmid_dataset}.pmid_embed_nonzero_metadata'
+    # Use the new public PMC table
+    pubmed_table = 'bigquery-public-data.pmc_open_access_commercial.articles'
     embedding_model = f'{project_id}.{pmid_dataset}.textembed'
     
     return f"""
@@ -395,7 +395,7 @@ def create_bq_query(events_text, num_articles=15):
     \"\"\";
 
     WITH vector_results AS (
-        SELECT base.name AS PMCID, base.PMID, base.content, distance 
+        SELECT base.pmc_id, base.pmid, base.article_text, distance 
         FROM VECTOR_SEARCH(
             TABLE `{pubmed_table}`, 
             'ml_generate_embedding_result', 
@@ -421,7 +421,7 @@ def stream_response(events_text, methodology_content=None, disease=None, num_art
         total_articles = len(results)
         
         # Get array of PMCIDs from BigQuery results and stream immediately
-        retrieved_pmcids = [row['PMCID'] for row in results]
+        retrieved_pmcids = [row['pmc_id'] for row in results]
         print(f"Retrieved PMCIDs: {retrieved_pmcids}")
 
         # Stream PMCIDs immediately
@@ -444,9 +444,9 @@ def stream_response(events_text, methodology_content=None, disease=None, num_art
 
         # Process each article
         for idx, row in enumerate(results, 1):
-            pmcid = row['PMCID']  # This is PMCID from the query result
-            pmid = row['PMID']   # This is PMID from the query result
-            content = row['content']
+            pmcid = row['pmc_id']  # This is pmc_id from the query result
+            pmid = row['pmid']   # This is pmid from the query result
+            content = row['article_text']
             
             # Log article details before analysis
             logger.info(f"Processing article:\nPMCID: {pmcid}\nContent length: {len(content)}\nFirst 200 chars: {content[:200]}")
@@ -475,22 +475,22 @@ def stream_response(events_text, methodology_content=None, disease=None, num_art
                     # Send complete JSON object with newline
                     yield json.dumps(response_obj) + "\n"
                 else:
-                    logger.error(f"Failed to analyze article {row['PMCID']}")
+                    logger.error(f"Failed to analyze article {row['pmc_id']}")
                     error_obj = {
                         "type": "error",
                         "data": {
-                            "message": f"Failed to analyze article {row['PMCID']}",
+                            "message": f"Failed to analyze article {row['pmc_id']}",
                             "article_number": idx,
                             "total_articles": total_articles
                         }
                     }
                     yield json.dumps(error_obj) + "\n"
             except Exception as e:
-                logger.error(f"Error processing article {row['PMCID']}: {str(e)}")
+                logger.error(f"Error processing article {row['pmc_id']}: {str(e)}")
                 yield json.dumps({
                     "type": "error",
                     "data": {
-                        "message": f"Error processing article {row['PMCID']}: {str(e)}",
+                        "message": f"Error processing article {row['pmc_id']}: {str(e)}",
                         "article_number": idx,
                         "total_articles": total_articles
                     }
