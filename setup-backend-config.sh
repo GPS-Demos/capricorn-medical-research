@@ -3,6 +3,9 @@
 # Setup script for Capricorn Medical Research backend configuration
 # This script creates .env.yaml files for all Cloud Functions
 
+set -euo pipefail
+umask 077
+
 echo "=================================================="
 echo "Capricorn Medical Research - Backend Configuration"
 echo "=================================================="
@@ -11,11 +14,29 @@ echo "This script will create .env.yaml files for all Cloud Functions."
 echo "You'll be prompted for common values once."
 echo ""
 
+validate_input() {
+    local val="$1"
+    local name="$2"
+    if [[ "$val" =~ [\$\`\"\\\n\r] ]]; then
+        echo "Error: Invalid character in $name" >&2
+        exit 1
+    fi
+}
+
 # Prompt for common values
 read -p "Enter your GCP Project ID: " PROJECT_ID
+validate_input "$PROJECT_ID" "Project ID"
+
 read -p "Enter your Firestore Database ID (e.g., capricorn-prod): " DATABASE_ID
+validate_input "$DATABASE_ID" "Database ID"
+
 read -p "Enter your Cloud Functions region (e.g., us-central1): " REGION
+validate_input "$REGION" "Region"
+
 read -p "Enter your BigQuery Project ID (press Enter if same as GCP Project): " BIGQUERY_PROJECT_ID
+if [ -n "$BIGQUERY_PROJECT_ID" ]; then
+    validate_input "$BIGQUERY_PROJECT_ID" "BigQuery Project ID"
+fi
 
 # Use GCP Project ID if BigQuery Project ID is empty
 if [ -z "$BIGQUERY_PROJECT_ID" ]; then
@@ -24,13 +45,19 @@ fi
 
 # Prompt for BigQuery dataset names
 read -p "Enter your PMID dataset name (e.g., pmid_uscentral): " PMID_DATASET
+validate_input "$PMID_DATASET" "PMID Dataset"
+
 read -p "Enter your Journal dataset name (e.g., journal_rank): " JOURNAL_DATASET
+validate_input "$JOURNAL_DATASET" "Journal Dataset"
 
 # Optional: Prompt for SendGrid API key
 echo ""
 echo "SendGrid API key is required for the feedback function."
 echo "You can enter it now or add it manually later to backend/capricorn-feedback/.env.yaml"
 read -p "Enter your SendGrid API key (optional, press Enter to skip): " SENDGRID_API_KEY
+if [ -n "$SENDGRID_API_KEY" ]; then
+    validate_input "$SENDGRID_API_KEY" "SendGrid API Key"
+fi
 
 echo ""
 echo "Creating configuration files..."
@@ -111,6 +138,8 @@ PROJECT_ID: "$PROJECT_ID"
 LOCATION: "$REGION"
 EOF
 echo "✓ Created backend/pubmed-search-tester-extract-events/.env.yaml"
+
+chmod 600 backend/*/.env.yaml 2>/dev/null || true
 
 echo ""
 echo "=================================================="

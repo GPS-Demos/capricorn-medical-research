@@ -17,7 +17,7 @@ import React from 'react';
 import UserMenu from './UserMenu';
 
 const Header = ({ user, firstName, handleLogin, handleLogout, showUserMenu, setShowUserMenu, isAuthenticated }) => {
-  console.log('[USER_MENU_DEBUG] Header: Rendering, isAuthenticated:', isAuthenticated, 'showUserMenu:', showUserMenu, 'user:', user);
+  console.log('[USER_MENU_DEBUG] Header: Rendering, isAuthenticated:', isAuthenticated, 'showUserMenu:', showUserMenu);
 
   const isAnonymous = user && user.isAnonymous;
   const showLoginButton = !isAuthenticated || isAnonymous;

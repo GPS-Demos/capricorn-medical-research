@@ -47,10 +47,24 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app, process.env.REACT_APP_FIREBASE_DATABASE_ID || "capricorn-eu");
 
+// Validation and security helpers
+const validateId = (id, name = 'ID') => {
+  if (!id || typeof id !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(id)) {
+    throw new Error(`Invalid ${name} format`);
+  }
+};
+
+const checkAuth = (userId) => {
+  validateId(userId, 'userId');
+  if (!auth.currentUser || auth.currentUser.uid !== userId) {
+    throw new Error('Unauthorized access');
+  }
+};
+
 // Helper functions for chat operations
-// In firebase.js
 export const createNewChat = async (userId, initialMessages) => {
   try {
+    checkAuth(userId);
     const chatRef = await addDoc(collection(db, `chats/${userId}/conversations`), {
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -59,26 +73,29 @@ export const createNewChat = async (userId, initialMessages) => {
     });
     return chatRef.id;
   } catch (error) {
-    console.error('Error creating new chat:', error);
+    console.error('Error creating new chat');
     throw error;
   }
 };
 
 export const addMessageToChat = async (userId, chatId, message) => {
   try {
+    checkAuth(userId);
+    validateId(chatId, 'chatId');
     const chatRef = doc(db, `chats/${userId}/conversations/${chatId}`);
     await updateDoc(chatRef, {
       messages: [...message],  // Firestore will merge this with existing messages
       updatedAt: new Date()
     });
   } catch (error) {
-    console.error('Error adding message to chat:', error);
+    console.error('Error adding message to chat');
     throw error;
   }
 };
 
 export const getUserChats = async (userId) => {
   try {
+    checkAuth(userId);
     const chatsRef = collection(db, `chats/${userId}/conversations`);
     const q = query(chatsRef, orderBy('updatedAt', 'desc'));
     const querySnapshot = await getDocs(q);
@@ -88,36 +105,42 @@ export const getUserChats = async (userId) => {
       ...doc.data()
     }));
   } catch (error) {
-    console.error('Error getting user chats:', error);
+    console.error('Error getting user chats');
     throw error;
   }
 };
 
 export const updateChatTitle = async (userId, chatId, newTitle) => {
   try {
+    checkAuth(userId);
+    validateId(chatId, 'chatId');
     const chatRef = doc(db, `chats/${userId}/conversations/${chatId}`);
     await updateDoc(chatRef, {
       title: newTitle,
       updatedAt: new Date()
     });
   } catch (error) {
-    console.error('Error updating chat title:', error);
+    console.error('Error updating chat title');
     throw error;
   }
 };
 
 export const deleteChat = async (userId, chatId) => {
   try {
+    checkAuth(userId);
+    validateId(chatId, 'chatId');
     const chatRef = doc(db, `chats/${userId}/conversations/${chatId}`);
     await deleteDoc(chatRef);
   } catch (error) {
-    console.error('Error deleting chat:', error);
+    console.error('Error deleting chat');
     throw error;
   }
 };
 
 export const getChatMessages = async (userId, chatId) => {
   try {
+    checkAuth(userId);
+    validateId(chatId, 'chatId');
     const chatRef = doc(db, `chats/${userId}/conversations/${chatId}`);
     const chatDoc = await getDoc(chatRef);
     
@@ -125,11 +148,10 @@ export const getChatMessages = async (userId, chatId) => {
       const chatData = chatDoc.data();
       return chatData.messages || [];
     } else {
-      console.error('Chat document does not exist');
       return [];
     }
   } catch (error) {
-    console.error('Error getting chat messages:', error);
+    console.error('Error getting chat messages');
     throw error;
   }
 };
@@ -146,6 +168,7 @@ export const signInAnonymousUser = async () => {
 };
 
 export const getChatDocumentsRealTime = (userId, callback) => {
+  checkAuth(userId);
   const chatsRef = collection(db, `chats/${userId}/conversations`);
   const q = query(chatsRef, orderBy('updatedAt', 'desc'));
 

@@ -135,15 +135,13 @@ const CaseInputSection = ({
       
       try {
         setIsRedacting(true);
-        console.log('SPEECH_DEBUG: Sending text for redaction:', text);
         const redactedText = await redactSensitiveInfo(text);
-        console.log('SPEECH_DEBUG: Received redacted text:', redactedText);
         setter(redactedText);
-        console.log('SPEECH_DEBUG: Redaction completed and set');
         return redactedText;
       } catch (error) {
-        console.error('SPEECH_DEBUG: Redaction failed:', error);
-        return text; // Return original text on error
+        console.error('Redaction failed');
+        setError('Failed to redact sensitive information.');
+        throw error;
       } finally {
         setIsRedacting(false);
       }
@@ -152,11 +150,15 @@ const CaseInputSection = ({
   );
 
   useEffect(() => {
-    handleRedaction(debouncedCaseNotes, setCaseNotes);
+    if (debouncedCaseNotes.trim()) {
+      handleRedaction(debouncedCaseNotes, setCaseNotes).catch(() => {});
+    }
   }, [debouncedCaseNotes, handleRedaction, setCaseNotes]);
 
   useEffect(() => {
-    handleRedaction(debouncedLabResults, setLabResults);
+    if (debouncedLabResults.trim()) {
+      handleRedaction(debouncedLabResults, setLabResults).catch(() => {});
+    }
   }, [debouncedLabResults, handleRedaction, setLabResults]);
 
   const handleCaseNotesChange = (e) => {
@@ -366,8 +368,6 @@ const CaseInputSection = ({
   }, [showLabResults]);
 
   const handleClear = useCallback(() => {
-    console.log('[CLEAR_DEBUG] CaseInputSection: handleClear called');
-    console.log('[CLEAR_DEBUG] Before clear - localCaseNotes:', localCaseNotes, 'localLabResults:', localLabResults);
     handleClearAll();
     setLocalCaseNotes('');
     setLocalLabResults('');
@@ -378,9 +378,8 @@ const CaseInputSection = ({
     setInterimTranscript('');
     setFocusedInput('caseNotes');
     if (isListening) {
-      recognitionRef.current.stop();
+      recognitionRef.current?.stop();
       setIsListening(false);
-      console.log('[CLEAR_DEBUG] CaseInputSection: Speech recognition stopped');
     }
     if (caseNotesRef.current) {
       caseNotesRef.current.style.height = 'auto';
@@ -388,18 +387,7 @@ const CaseInputSection = ({
     if (labResultsRef.current) {
       labResultsRef.current.style.height = 'auto';
     }
-    console.log('[CLEAR_DEBUG] CaseInputSection: Textarea heights reset');
-    
-    // Force a re-render to ensure the UI updates
-    setTimeout(() => {
-      console.log('[CLEAR_DEBUG] After timeout - localCaseNotes:', localCaseNotes, 'localLabResults:', localLabResults);
-    }, 0);
   }, [isListening, handleClearAll, setCaseNotes, setLabResults]);
-
-  // Add this new effect to log state changes
-  useEffect(() => {
-    console.log('[CLEAR_DEBUG] State changed - localCaseNotes:', localCaseNotes, 'localLabResults:', localLabResults, 'hasInput:', hasInput);
-  }, [localCaseNotes, localLabResults, hasInput]);
 
   const handleExampleClick = () => {
     setLocalCaseNotes(presetCaseNotes);

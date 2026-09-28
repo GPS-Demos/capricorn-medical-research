@@ -14,6 +14,16 @@
 
 import React, { useState } from 'react';
 
+const escapeHtml = (str) => {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
 const ArticleResults = ({ 
   articles, 
   initialExpanded = true, 
@@ -23,22 +33,9 @@ const ArticleResults = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(initialExpanded);
 
-  // Debug logging
-  console.log('[ArticleResults] Rendering with props:', {
-    articlesLength: articles?.length,
-    hasArticles: !!articles?.length,
-    currentProgress,
-    totalArticles,
-    processedArticles,
-    articles: articles
-  });
-
   if (!articles?.length && !currentProgress) {
-    console.log('[ArticleResults] Returning null - no articles and no progress');
     return null;
   }
-
-  console.log('[ArticleResults] Will render component');
 
   return (
     <div className="mt-4 bg-surface-50 shadow-lg rounded-lg p-4">
@@ -103,7 +100,7 @@ const ArticleResults = ({
                 return (
                   <tr key={index}>
                     <td className="px-4 py-2 text-xs border-t text-gray-500 max-h-20 overflow-y-auto">
-                      <a href={`https://www.ncbi.nlm.nih.gov/pmc/articles/${article.pmcid}/`} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+                      <a href={`https://www.ncbi.nlm.nih.gov/pmc/articles/${encodeURIComponent(article.pmcid)}/`} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
                         {article.pmcid}
                       </a>
                     </td>
@@ -126,27 +123,31 @@ const ArticleResults = ({
                     <td className="px-4 py-2 text-xs border-t text-gray-500">
                       <button
                         onClick={() => {
-                          const newWindow = window.open('', '_blank');
-                          newWindow.document.write(`
-                            <!DOCTYPE html>
-                            <html>
-                              <head>
-                                <title>Full Article</title>
-                                <script src="https://cdn.tailwindcss.com"></script>
-                              </head>
-                              <body>
-                                <div class="min-h-screen bg-gray-50 py-8 px-4">
-                                  <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6">
-                                    <button onclick="window.close()" class="mb-4 text-blue-500 hover:text-blue-700">← Back to Table</button>
-                                    <div class="prose max-w-none">
-                                      <p class="whitespace-pre-wrap text-gray-700 text-lg leading-relaxed">${article.content}</p>
+                          const newWindow = window.open('', '_blank', 'noopener,noreferrer');
+                          if (newWindow) {
+                            newWindow.opener = null;
+                            const safeContent = escapeHtml(article.content);
+                            newWindow.document.write(`
+                              <!DOCTYPE html>
+                              <html>
+                                <head>
+                                  <title>Full Article</title>
+                                  <script src="https://cdn.tailwindcss.com"></script>
+                                </head>
+                                <body>
+                                  <div class="min-h-screen bg-gray-50 py-8 px-4">
+                                    <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6">
+                                      <button onclick="window.close()" class="mb-4 text-blue-500 hover:text-blue-700">← Back to Table</button>
+                                      <div class="prose max-w-none">
+                                        <p class="whitespace-pre-wrap text-gray-700 text-lg leading-relaxed">${safeContent}</p>
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                              </body>
-                            </html>
-                          `);
-                          newWindow.document.close();
+                                </body>
+                              </html>
+                            `);
+                            newWindow.document.close();
+                          }
                         }}
                         className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
                       >
@@ -156,39 +157,44 @@ const ArticleResults = ({
                     <td className="px-4 py-2 text-xs border-t text-gray-500">
                       <button
                         onClick={() => {
-                          const newWindow = window.open('', '_blank');
-                          newWindow.document.write(`
-                            <!DOCTYPE html>
-                            <html>
-                              <head>
-                                <title>Points Details</title>
-                                <script src="https://cdn.tailwindcss.com"></script>
-                              </head>
-                              <body>
-                                <div class="min-h-screen bg-gray-50 py-8 px-4">
-                                  <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6">
-                                    <button onclick="window.close()" class="mb-4 text-blue-500 hover:text-blue-700">← Back to Table</button>
-                                    <div class="space-y-4">
-                                      <h2 class="text-2xl font-bold text-gray-800">Points Details</h2>
-                                      <div class="text-4xl font-bold text-blue-600">${Math.round(article.points)} Points</div>
-                                      <div class="space-y-2">
-                                        ${pointsBreakdown.split(' | ').map(item => {
-                                          const [label, value] = item.split(': ');
-                                          return `
-                                            <div class="flex justify-between items-center py-2 border-b">
-                                              <span class="text-gray-600">${label}</span>
-                                              <span class="font-semibold ${value.startsWith('+') ? 'text-green-600' : 'text-red-600'}">${value}</span>
-                                            </div>
-                                          `;
-                                        }).join('')}
+                          const newWindow = window.open('', '_blank', 'noopener,noreferrer');
+                          if (newWindow) {
+                            newWindow.opener = null;
+                            newWindow.document.write(`
+                              <!DOCTYPE html>
+                              <html>
+                                <head>
+                                  <title>Points Details</title>
+                                  <script src="https://cdn.tailwindcss.com"></script>
+                                </head>
+                                <body>
+                                  <div class="min-h-screen bg-gray-50 py-8 px-4">
+                                    <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6">
+                                      <button onclick="window.close()" class="mb-4 text-blue-500 hover:text-blue-700">← Back to Table</button>
+                                      <div class="space-y-4">
+                                        <h2 class="text-2xl font-bold text-gray-800">Points Details</h2>
+                                        <div class="text-4xl font-bold text-blue-600">${Math.round(article.points)} Points</div>
+                                        <div class="space-y-2">
+                                          ${pointsBreakdown.split(' | ').map(item => {
+                                            const [label, value] = item.split(': ');
+                                            const safeLabel = escapeHtml(label);
+                                            const safeValue = escapeHtml(value || '');
+                                            return `
+                                              <div class="flex justify-between items-center py-2 border-b">
+                                                <span class="text-gray-600">${safeLabel}</span>
+                                                <span class="font-semibold ${safeValue.startsWith('+') ? 'text-green-600' : 'text-red-600'}">${safeValue}</span>
+                                              </div>
+                                            `;
+                                          }).join('')}
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
-                                </div>
-                              </body>
-                            </html>
-                          `);
-                          newWindow.document.close();
+                                </body>
+                              </html>
+                            `);
+                            newWindow.document.close();
+                          }
                         }}
                         className="flex items-center gap-1 text-gray-500 hover:text-gray-700"
                       >

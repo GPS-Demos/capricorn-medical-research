@@ -291,8 +291,9 @@ const WrappedExpandableSidebar = ({
         };
         wrappedOnChatSelect(newChat);
         otherProps.onToggle(false); // Minimize sidebar after creating new chat
+        return chatId;
       } catch (error) {
-        console.error('Error creating new chat:', error);
+        console.error('Error creating new chat');
       }
     }
   };

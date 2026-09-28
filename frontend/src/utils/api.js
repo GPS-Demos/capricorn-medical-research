@@ -96,19 +96,23 @@ export const streamChat = async (message, userId, chatId, onChunk) => {
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
+    let buffer = '';
 
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
 
-      const chunk = decoder.decode(value);
-      const lines = chunk.split('\n');
+      buffer += decoder.decode(value, { stream: true });
+      let lineEnd = buffer.indexOf('\n');
 
-      for (const line of lines) {
+      while (lineEnd !== -1) {
+        const line = buffer.slice(0, lineEnd).trim();
+        buffer = buffer.slice(lineEnd + 1);
+
         if (line.startsWith('data: ')) {
           const data = line.slice(6);
           if (data === '[DONE]') {
-            break;
+            return;
           }
           try {
             const parsed = JSON.parse(data);
@@ -116,13 +120,14 @@ export const streamChat = async (message, userId, chatId, onChunk) => {
               onChunk(parsed.text);
             }
           } catch (e) {
-            console.error('Error parsing SSE data:', e);
+            console.error('Error parsing SSE data');
           }
         }
+        lineEnd = buffer.indexOf('\n');
       }
     }
   } catch (error) {
-    console.error('Error in chat stream:', error);
+    console.error('Error in chat stream');
     throw error;
   }
 };
@@ -185,7 +190,7 @@ export const extractEvents = async (text, promptContent) => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ text: `${promptContent}\n\nCase input:\n${text}` }),
+      body: JSON.stringify({ text }),
     });
 
     if (!response.ok) {
@@ -195,7 +200,7 @@ export const extractEvents = async (text, promptContent) => {
     const data = await response.text();
     return data.split('"').filter(event => event.trim() && event !== ' ');
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error extracting events');
     throw error;
   }
 };
@@ -284,7 +289,8 @@ export const fetchTemplates = async () => {
  */
 export const deleteTemplate = async (templateId) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/templates/${templateId}`, {
+    const safeTemplateId = encodeURIComponent(templateId);
+    const response = await fetch(`${API_BASE_URL}/templates/${safeTemplateId}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -296,7 +302,7 @@ export const deleteTemplate = async (templateId) => {
       throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
     }
   } catch (error) {
-    console.error('Error deleting template:', error);
+    console.error('Error deleting template');
     throw new Error(`Failed to delete template: ${error.message}`);
   }
 };
@@ -311,13 +317,6 @@ export const deleteTemplate = async (templateId) => {
  */
 export const generateFinalAnalysis = async (caseNotes, disease, events, analyzedArticles) => {
   try {
-    console.log('LOADING_DEBUG: Starting final analysis request with:', {
-      case_notes: caseNotes,
-      disease,
-      events,
-      analyzed_articles: analyzedArticles
-    });
-
     const response = await fetch(`${API_BASE_URL}/capricorn-final-analysis`, {
       method: 'POST',
       headers: {
@@ -333,15 +332,13 @@ export const generateFinalAnalysis = async (caseNotes, disease, events, analyzed
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error('Final analysis error response:', errorData);
       throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log('LOADING_DEBUG: Final analysis response received');
     return data.analysis;
   } catch (error) {
-    console.error('Error generating final analysis:', error);
+    console.error('Error generating final analysis');
     throw new Error(`Failed to generate final analysis: ${error.message}`);
   }
 };

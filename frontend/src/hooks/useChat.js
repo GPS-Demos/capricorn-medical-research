@@ -32,12 +32,13 @@ const useChat = (user, selectedTemplate) => {
   }, [chatHistory]);
 
   const handleInitializeActiveChat = useCallback(async (caseNotes, labResults, extractedDisease, extractedEvents) => {
+    if (!userId) return;
     // If there's an active temporary chat, delete it first
     if (!user && activeChat) {
       try {
         await deleteChat(userId, activeChat.id);
       } catch (error) {
-        console.error('Error deleting temporary chat:', error);
+        console.error('Error deleting temporary chat');
       }
     }
 
@@ -60,6 +61,7 @@ const useChat = (user, selectedTemplate) => {
   }, []);
 
   const handleChatSelection = useCallback(async (chat) => {
+    if (!userId) return;
     await handleChatSelect({
       chat,
       setActiveChat,
@@ -71,6 +73,7 @@ const useChat = (user, selectedTemplate) => {
   }, [handleInitializeNewChat, userId]);
 
   const handleMessageSend = useCallback(async (e) => {
+    if (!userId) return;
     await handleSendMessage({
       e,
       message,
@@ -86,7 +89,7 @@ const useChat = (user, selectedTemplate) => {
       selectedTemplate,
       userId
     });
-  }, [message, isLoadingDocs, isLoadingAnalysis, activeChat, user, selectedTemplate]);
+  }, [message, isLoadingDocs, isLoadingAnalysis, activeChat, user, selectedTemplate, userId]);
 
   return {
     chatHistory,

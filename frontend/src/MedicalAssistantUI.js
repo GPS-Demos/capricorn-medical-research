@@ -73,14 +73,8 @@ const handleSidebarToggle = () => {
   console.log('MedicalAssistantUI: setCaseNotes is a function:', typeof setCaseNotes === 'function');
 
   const { user, firstName, loading, handleLogin, handleLogout, isAuthenticated } = useAuth();
-  console.log('[AUTH_MENU_DEBUG] MedicalAssistantUI: auth state:', { user, isAuthenticated, firstName, showUserMenu });
-
-  useEffect(() => {
-    console.log('[AUTH_MENU_DEBUG] MedicalAssistantUI: Authentication state changed:', { isAuthenticated, firstName, showUserMenu });
-  }, [isAuthenticated, firstName, showUserMenu]);
 
   const handleToggleUserMenu = () => {
-    console.log('[AUTH_MENU_DEBUG] MedicalAssistantUI: Toggling user menu');
     setShowUserMenu(prevState => !prevState);
   };
   
@@ -151,14 +145,8 @@ const handleSidebarToggle = () => {
   }, [chatHistory]);
 
 const handleExtract = async () => {
-  console.log('[CHAT_DEBUG] Starting extraction process');
   try {
     setIsProcessing(true);
-    console.log('[CHAT_DEBUG] User state:', {
-      isAuthenticated: !!user,
-      userId: user?.uid,
-      isAnonymous: user?.isAnonymous
-    });
     // Combine case notes and lab results with clear separation
     const combinedNotes = [
       "Case Notes:",
@@ -167,37 +155,33 @@ const handleExtract = async () => {
       labResults
     ].join('\n\n');
 
-    console.log('[CHAT_DEBUG] Extracting disease and events from notes');
     const [disease, events] = await Promise.all([
       extractDisease(combinedNotes),
       extractEvents(combinedNotes, extractionPrompt)
     ]);
-    console.log('[CHAT_DEBUG] Extraction results:', { disease, events });
     setExtractedDisease(disease);
     setExtractedEvents(events);
     setIsBox2Hovered(true); // Keep box 2 solid after extraction
 
     // Initialize active chat with the extracted information
     try {
-      console.log('[CHAT_DEBUG] Initializing active chat with extracted data');
       await initializeActiveChat(caseNotes, labResults, disease, events);
-      console.log('[CHAT_DEBUG] Chat initialization successful');
       
       // Reset the retrieval attempt ref, set justExtracted to true, and set shouldRetrieve to true
       retrievalAttemptedRef.current = false;
       setJustExtracted(true);
       setShouldRetrieve(true);
     } catch (error) {
-      console.error('[CHAT_DEBUG] Error initializing chat:', error);
+      console.error('Error initializing chat');
     }
   } catch (error) {
-    console.error('[CHAT_DEBUG] Extraction error:', error);
-    if (error.message.includes('Failed to fetch')) {
+    console.error('Extraction error');
+    if (error.message && error.message.includes('Failed to fetch')) {
       setExtractedDisease('Network error. Please check your connection and try again.');
       setExtractedEvents(['Network error. Please check your connection and try again.']);
     } else {
-      setExtractedDisease(error.message || 'Error extracting disease. Please try again.');
-      setExtractedEvents([error.message || 'Error extracting events. Please try again.']);
+      setExtractedDisease('Error extracting disease. Please try again.');
+      setExtractedEvents(['Error extracting events. Please try again.']);
     }
   } finally {
     setIsProcessing(false);
@@ -210,8 +194,6 @@ const handleExtract = async () => {
   };
 
   const handleClearAll = useCallback(() => {
-    console.log('[CLEAR_DEBUG] MedicalAssistantUI: handleClearAll called');
-    console.log('[CLEAR_DEBUG] Before clear - caseNotes:', caseNotes, 'labResults:', labResults);
     setCaseNotes('');
     setLabResults('');
     setExtractedDisease('');
@@ -226,13 +208,7 @@ const handleExtract = async () => {
     setIsPromptExpanded(true);
     setIsNewChat(true);
     initializeNewChat();
-    console.log('[CLEAR_DEBUG] MedicalAssistantUI: All states reset');
-    
-    // Force a re-render to ensure the UI updates
-    setTimeout(() => {
-      console.log('[CLEAR_DEBUG] After timeout - caseNotes:', caseNotes, 'labResults:', labResults);
-    }, 0);
-  }, [setCaseNotes, setLabResults, setExtractedDisease, setExtractedEvents, initializeNewChat, caseNotes, labResults]);
+  }, [setCaseNotes, setLabResults, setExtractedDisease, setExtractedEvents, initializeNewChat]);
 
   const handleRetrieve = async () => {
     console.log('Retrieval triggered. Conditions:', {
@@ -291,8 +267,6 @@ const handleExtract = async () => {
                 processedArticlesCount: processedArticles.length,
                 currentProgress: currentProgress,
                 articlesData: processedArticles
-              });
-              
               const documentsContent = {
                 type: 'document',
                 content: {
@@ -301,20 +275,9 @@ const handleExtract = async () => {
                 }
               };
               
-              console.log('[MEDICAL_UI] Document message structure:', {
-                type: documentsContent.type,
-                hasContent: !!documentsContent.content,
-                contentKeys: Object.keys(documentsContent.content),
-                articlesInContent: documentsContent.content.articles?.length,
-                fullContent: JSON.stringify(documentsContent, null, 2)
-              });
-              
-              console.log('Sending document message to handleSendMessage:', JSON.stringify(documentsContent, null, 2));
               await handleSendMessage(documentsContent);
-              console.log('Document message sent successfully');
 
               try {
-                console.log('Starting final analysis with processed articles:', processedArticles.length);
                 // Send the analysis loading state message
                 const loadingContent = {
                   type: 'analysis',
@@ -337,13 +300,10 @@ const handleExtract = async () => {
                   content: finalAnalysis.markdown_content
                 };
                 
-                // Send the analysis message
-                console.log('Sending analysis message to handleSendMessage:', JSON.stringify(analysisContent, null, 2));
                 await handleSendMessage(analysisContent);
-                console.log('Analysis message sent successfully');
                 setCurrentProgress('Processing complete.');
               } catch (error) {
-                console.error('Error generating final analysis:', error);
+                console.error('Error generating final analysis');
                 setCurrentProgress('Error generating final analysis. Please try again.');
               }
             }

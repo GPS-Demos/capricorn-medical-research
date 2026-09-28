@@ -19,7 +19,29 @@ from flask import jsonify, Response, stream_with_context
 from google import genai
 from google.cloud import firestore
 import json
+import logging
 import os
+import re
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# Allowed origins for CORS
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        "ALLOWED_ORIGINS",
+        "http://localhost:3000,http://127.0.0.1:3000,https://capricorn-medical-research.web.app"
+    ).split(",")
+    if origin.strip()
+]
+
+def get_cors_origin(req):
+    origin = req.headers.get("Origin", "")
+    if origin in ALLOWED_ORIGINS:
+        return origin
+    return ALLOWED_ORIGINS[0] if ALLOWED_ORIGINS else "http://localhost:3000"
 
 # Initialize Firestore client with environment variable
 db = firestore.Client(database=os.environ.get('DATABASE_ID', 'capricorn-eu'))
@@ -85,19 +107,20 @@ The conversation will include full article texts and analysis - use this informa
 @functions_framework.http
 def chat(request):
     """HTTP Cloud Function for chat interactions."""
+    origin = get_cors_origin(request)
     # Set CORS headers for preflight requests
     if request.method == 'OPTIONS':
         headers = {
-            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Origin': origin,
             'Access-Control-Allow-Methods': 'POST',
-            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
             'Access-Control-Max-Age': '3600'
         }
         return ('', 204, headers)
 
     # Set CORS headers for main requests
     headers = {
-        'Access-Control-Allow-Origin': '*'
+        'Access-Control-Allow-Origin': origin
     }
 
     request_json = request.get_json(silent=True)
@@ -111,6 +134,12 @@ def chat(request):
     
     if not all([message, user_id, chat_id]):
         return jsonify({'error': 'Missing required fields'}), 400, headers
+
+    # Validate input identifier formats to prevent traversal and unauthorized resource access
+    if not isinstance(user_id, str) or not re.match(r'^[a-zA-Z0-9_\-\.]{1,128}$', user_id):
+        return jsonify({'error': 'Invalid userId format'}), 400, headers
+    if not isinstance(chat_id, str) or not re.match(r'^[a-zA-Z0-9_\-\.]{1,128}$', chat_id):
+        return jsonify({'error': 'Invalid chatId format'}), 400, headers
 
     try:
         # Get chat history
@@ -150,30 +179,12 @@ def chat(request):
                 )
             )
 
-        # Configure generation settings
+        # Configure generation settings with safe defaults
         generate_content_config = types.GenerateContentConfig(
             temperature=1,
             top_p=0.95,
             max_output_tokens=8192,
             response_modalities=["TEXT"],
-            safety_settings=[
-                types.SafetySetting(
-                    category="HARM_CATEGORY_HATE_SPEECH",
-                    threshold="OFF"
-                ),
-                types.SafetySetting(
-                    category="HARM_CATEGORY_DANGEROUS_CONTENT",
-                    threshold="OFF"
-                ),
-                types.SafetySetting(
-                    category="HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                    threshold="OFF"
-                ),
-                types.SafetySetting(
-                    category="HARM_CATEGORY_HARASSMENT",
-                    threshold="OFF"
-                )
-            ]
         )
 
         # Generate streaming response
@@ -190,7 +201,8 @@ def chat(request):
                         yield f"data: {json.dumps({'text': chunk.text})}\n\n"
                         
             except Exception as e:
-                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                logger.error(f"Error in chat stream generation: {str(e)}")
+                yield f"data: {json.dumps({'error': 'An internal error occurred.'})}\n\n"
             
             yield "data: [DONE]\n\n"
 
@@ -205,4 +217,5 @@ def chat(request):
         )
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500, headers
+        logger.error(f"Error in chat handler: {str(e)}")
+        return jsonify({'error': 'An internal error occurred.'}), 500, headers

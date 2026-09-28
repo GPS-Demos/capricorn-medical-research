@@ -26,23 +26,9 @@ export const initializeActiveChat = async ({
   setChatHistory,
   userId
 }) => {
-  console.log('[CHAT_DEBUG] Initializing active chat:', {
-    hasUser: !!user,
-    userId: user?.uid || userId,
-    hasExtractedDisease: !!extractedDisease,
-    hasExtractedEvents: !!extractedEvents
-  });
-
   try {
     const timestamp = new Date();
     const messageId = createMessageId('initial');
-    
-    console.log('[CHAT_DEBUG] Creating initial message with:', {
-      timestamp: new Date(),
-      messageId,
-      extractedDisease,
-      numEvents: extractedEvents?.length
-    });
 
     // Create the initial message that contains all the case information
     const initialMessage = {
@@ -59,17 +45,14 @@ export const initializeActiveChat = async ({
     };
 
     // Create a new chat with the initial message
-    console.log('[CHAT_DEBUG] Creating new chat in Firestore');
     const chatId = await createNewChat(user?.uid || userId, [initialMessage]);
     
-    console.log('[CHAT_DEBUG] Setting active chat with ID:', chatId);
     // Set the active chat
     setActiveChat({
       id: chatId,
       messages: [initialMessage]
     });
 
-    console.log('[CHAT_DEBUG] Setting chat history with initialization message');
     // Update chat history
     setChatHistory([{
       id: messageId,
@@ -84,10 +67,9 @@ export const initializeActiveChat = async ({
       }
     }]);
 
-    console.log('[CHAT_DEBUG] Active chat initialization complete');
     return chatId;
   } catch (error) {
-    console.error('[CHAT_DEBUG] Error initializing active chat:', error);
+    console.error('Error initializing active chat');
     throw error;
   }
 };
@@ -119,58 +101,64 @@ export const handleChatSelect = async ({
     
     // Process the fetched messages
     latestMessages.forEach(msg => {
-      switch (msg.type) {
-        case 'initial_case':
-          const initialCase = JSON.parse(msg.content);
-          messages.push({
-            id: msg.messageId,
-            text: `Case initialized with disease: ${initialCase.extractedDisease}`,
-            isUser: false,
-            timestamp: msg.timestamp,
-            initialCase
-          });
-          break;
-          
-        case 'message':
-          messages.push({
-            id: msg.messageId,
-            text: msg.content,
-            isUser: msg.role === 'user',
-            timestamp: msg.timestamp
-          });
-          break;
-          
-        case 'document':
-          const docContent = JSON.parse(msg.content);
-          messages.push({
-            id: msg.messageId,
-            type: 'document',
-            isUser: false,
-            currentProgress: docContent.currentProgress,
-            articles: docContent.articles,
-            timestamp: msg.timestamp
-          });
-          setHasDocumentMessages(true);
-          break;
-          
-        case 'analysis':
-          messages.push({
-            id: msg.messageId,
-            isUser: false,
-            analysis: msg.content,
-            timestamp: msg.timestamp
-          });
-          break;
-          
-        case 'error':
-          messages.push({
-            id: msg.messageId,
-            text: msg.content,
-            isUser: false,
-            error: msg.error,
-            timestamp: msg.timestamp
-          });
-          break;
+      try {
+        switch (msg.type) {
+          case 'initial_case': {
+            const initialCase = JSON.parse(msg.content);
+            messages.push({
+              id: msg.messageId,
+              text: `Case initialized with disease: ${initialCase.extractedDisease}`,
+              isUser: false,
+              timestamp: msg.timestamp,
+              initialCase
+            });
+            break;
+          }
+            
+          case 'message':
+            messages.push({
+              id: msg.messageId,
+              text: msg.content,
+              isUser: msg.role === 'user',
+              timestamp: msg.timestamp
+            });
+            break;
+            
+          case 'document': {
+            const docContent = JSON.parse(msg.content);
+            messages.push({
+              id: msg.messageId,
+              type: 'document',
+              isUser: false,
+              currentProgress: docContent.currentProgress,
+              articles: docContent.articles,
+              timestamp: msg.timestamp
+            });
+            setHasDocumentMessages(true);
+            break;
+          }
+            
+          case 'analysis':
+            messages.push({
+              id: msg.messageId,
+              isUser: false,
+              analysis: msg.content,
+              timestamp: msg.timestamp
+            });
+            break;
+            
+          case 'error':
+            messages.push({
+              id: msg.messageId,
+              text: msg.content,
+              isUser: false,
+              error: msg.error,
+              timestamp: msg.timestamp
+            });
+            break;
+        }
+      } catch (err) {
+        console.error('Error parsing message content');
       }
     });
 

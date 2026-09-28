@@ -12,17 +12,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import html
 import os
 import json
 import logging
 from flask import jsonify, request
-from flask_cors import cross_origin
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, To
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Allowed origins for CORS
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        "ALLOWED_ORIGINS",
+        "http://localhost:3000,http://127.0.0.1:3000,https://capricorn-medical-research.web.app"
+    ).split(",")
+    if origin.strip()
+]
+
+def get_cors_origin(req):
+    origin = req.headers.get("Origin", "")
+    if origin in ALLOWED_ORIGINS:
+        return origin
+    return ALLOWED_ORIGINS[0] if ALLOWED_ORIGINS else "http://localhost:3000"
 
 # Define team recipients
 TEAM_RECIPIENTS = [
@@ -41,12 +57,11 @@ def send_feedback_email(request):
         The response text, or any set of values that can be turned into a
         Response object using `make_response`.
     """
+    origin = get_cors_origin(request)
     # Set CORS headers for preflight requests
     if request.method == 'OPTIONS':
-        # Allows POST requests from any origin with the Content-Type
-        # header and caches preflight response for 3600s
         headers = {
-            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Origin': origin,
             'Access-Control-Allow-Methods': 'POST',
             'Access-Control-Allow-Headers': 'Content-Type',
             'Access-Control-Max-Age': '3600'
@@ -55,7 +70,7 @@ def send_feedback_email(request):
     
     # Set CORS headers for the main request
     headers = {
-        'Access-Control-Allow-Origin': '*'
+        'Access-Control-Allow-Origin': origin
     }
     
     try:
@@ -66,14 +81,16 @@ def send_feedback_email(request):
             logger.error("No JSON data in request")
             return (jsonify({'success': False, 'error': 'No data provided'}), 400, headers)
         
-        # Extract feedback data
-        name = request_json.get('name', 'Anonymous User')
-        email = request_json.get('email', 'No email provided')
-        feedback_text = request_json.get('feedback')
+        # Extract and HTML-escape feedback data to prevent email HTML injection / XSS
+        name = html.escape(str(request_json.get('name', 'Anonymous User')))
+        email = html.escape(str(request_json.get('email', 'No email provided')))
+        raw_feedback = request_json.get('feedback')
         
-        if not feedback_text:
+        if not raw_feedback:
             logger.error("No feedback text provided")
             return (jsonify({'success': False, 'error': 'No feedback text provided'}), 400, headers)
+        
+        feedback_text = html.escape(str(raw_feedback))
         
         # Get SendGrid API key from environment variable
         api_key = os.environ.get('SENDGRID_API_KEY')
@@ -81,12 +98,10 @@ def send_feedback_email(request):
             logger.error("SendGrid API key not found")
             return (jsonify({'success': False, 'error': 'Email service configuration error'}), 500, headers)
         
-        # Create recipients list - include sender if they provided a valid email
+        # Restrict recipients strictly to verified team members; never reflect user-provided email
         recipients = TEAM_RECIPIENTS.copy()
-        if email and email != 'No email provided' and '@' in email:
-            recipients.append(email)
         
-        # Create email message
+        # Create email message with escaped content
         message = Mail(
             from_email='williszhang@williszhang.com',
             to_emails=[To(email=recipient) for recipient in recipients],
@@ -111,4 +126,4 @@ def send_feedback_email(request):
         
     except Exception as e:
         logger.error(f"Error sending email: {str(e)}")
-        return (jsonify({'success': False, 'error': str(e)}), 500, headers)
+        return (jsonify({'success': False, 'error': 'Failed to process feedback'}), 500, headers)

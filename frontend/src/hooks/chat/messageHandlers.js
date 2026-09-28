@@ -139,8 +139,14 @@ const handleUserMessage = async ({
   try {
     redactedMessage = await redactSensitiveInfo(userMessage);
   } catch (error) {
-    console.error('Error redacting message:', error);
-    redactedMessage = userMessage; // Fallback to original message if redaction fails
+    console.error('Error redacting message');
+    setChatHistory(prev => [...prev, {
+      id: createMessageId('error'),
+      text: 'Failed to safely redact sensitive information. Message was not sent for security reasons.',
+      isUser: false,
+      timestamp: new Date()
+    }]);
+    return;
   }
   try {
     let currentChatId = activeChat?.id;
@@ -205,34 +211,27 @@ const handleUserMessage = async ({
       setIsLoadingDocs(false);
     } else {
       // Stream the response
-      console.log('CHAT_HANDLER_DEBUG: Starting to stream response');
       let accumulatedText = '';
       
       await streamChat(
-        userMessage,
+        redactedMessage,
         user?.uid || userId,
         currentChatId,
         (chunk) => {
-          console.log('CHAT_HANDLER_DEBUG: Received chunk:', chunk);
           accumulatedText += chunk;
           setChatHistory(prev => {
             const newHistory = [...prev];
             const assistantMessageIndex = newHistory.findIndex(msg => msg.id === assistantMessageId);
             if (assistantMessageIndex !== -1) {
-              console.log('CHAT_HANDLER_DEBUG: Current message state:', newHistory[assistantMessageIndex]);
               newHistory[assistantMessageIndex] = {
                 ...newHistory[assistantMessageIndex],
                 text: accumulatedText
               };
-              console.log('CHAT_HANDLER_DEBUG: Updated message state:', newHistory[assistantMessageIndex]);
-            } else {
-              console.log('CHAT_HANDLER_DEBUG: Could not find message with id:', assistantMessageId);
             }
             return newHistory;
           });
         }
       );
-      console.log('CHAT_HANDLER_DEBUG: Finished streaming response');
 
       // Update Firestore with the complete message
       if (accumulatedText) {

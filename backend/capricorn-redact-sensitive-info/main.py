@@ -22,6 +22,28 @@ import re
 from datetime import datetime
 import os
 
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# Allowed origins for CORS
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        "ALLOWED_ORIGINS",
+        "http://localhost:3000,http://127.0.0.1:3000,https://capricorn-medical-research.web.app"
+    ).split(",")
+    if origin.strip()
+]
+
+def get_cors_origin(req):
+    origin = req.headers.get("Origin", "")
+    if origin in ALLOWED_ORIGINS:
+        return origin
+    return ALLOWED_ORIGINS[0] if ALLOWED_ORIGINS else "http://localhost:3000"
+
 # Initialize DLP client
 dlp_client = dlp_v2.DlpServiceClient()
 
@@ -171,9 +193,24 @@ def get_info_types():
     ]
     return all_types
 
+COMMON_DATE_FORMATS = [
+    "%Y-%m-%d", "%m/%d/%Y", "%m-%d-%Y", "%d/%m/%Y", "%d-%m-%Y",
+    "%Y/%m/%d", "%B %d, %Y", "%b %d, %Y", "%d %B %Y", "%d %b %Y",
+    "%m/%d/%y", "%m-%d-%y"
+]
+
 def standardize_date(date_string):
+    cleaned = date_string.strip()
+    for fmt in COMMON_DATE_FORMATS:
+        try:
+            dt = datetime.strptime(cleaned, fmt)
+            return dt.strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+
+    # Fallback to Gemini if standard parsing fails
     prompt = f"""
-    Convert the following date to YYYY-MM-DD format: {date_string}
+    Convert the following date to YYYY-MM-DD format: {cleaned}
     
     Respond with ONLY the standardized date in YYYY-MM-DD format.
     If the date cannot be converted, respond with 'INVALID'.
@@ -205,16 +242,15 @@ def calculate_age(birth_date):
     age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
     return age
 
-def deidentify_content(project_id, text):
-    """Deidentify sensitive content using DLP API and Gemini for date processing."""
+def deidentify_content(project_id, text, debug_info=None):
+    """Deidentify sensitive content using DLP API and localized date processing."""
     if not text:
         return text
 
-    print(f"Original text: {text}")
+    logger.info("Starting deidentify_content execution")
 
     # Get info types for redaction
     info_types = get_info_types()
-    print(f"Info types used for identification: {[t['name'] for t in info_types]}")
 
     # Set up DLP API request for inspection
     inspect_config = {
@@ -232,25 +268,31 @@ def deidentify_content(project_id, text):
         "item": item,
     }
 
-    print("Calling DLP API for content inspection")
+    logger.info("Calling DLP API for content inspection")
     inspect_response = dlp_client.inspect_content(request=inspect_request)
 
-    # Process each finding
+    # Process each finding safely (bounded to prevent resource exhaustion)
+    dob_count = 0
     for finding in inspect_response.result.findings:
         info_type = finding.info_type.name
         quote = finding.quote
-        print(f"Found {info_type}: {quote}")
+        
+        # Safely track identified info type without storing plaintext quote in debug_info
+        if debug_info is not None:
+            debug_info.append(f"Found {info_type}")
 
         if info_type == "DATE_OF_BIRTH":
+            dob_count += 1
+            if dob_count > 20:
+                text = text.replace(quote, "[REDACTED DATE_OF_BIRTH]")
+                continue
             try:
                 standardized_date = standardize_date(quote)
                 age = calculate_age(standardized_date)
                 text = text.replace(quote, f"Age: {age}")
-                print(f"Replaced DATE_OF_BIRTH with age: {age}")
             except Exception as e:
-                print(f"Error processing DATE_OF_BIRTH: {str(e)}")
+                logger.warning(f"Error processing DATE_OF_BIRTH: {str(e)}")
                 text = text.replace(quote, "[REDACTED DATE_OF_BIRTH]")
-                print(f"Redacted DATE_OF_BIRTH due to processing error")
 
     # Set up DLP API request for deidentification of remaining sensitive information
     deidentify_config = {
@@ -277,30 +319,21 @@ def deidentify_content(project_id, text):
     }
 
     try:
-        print("Calling DLP API for content deidentification")
+        logger.info("Calling DLP API for content deidentification")
         deidentify_response = dlp_client.deidentify_content(request=deidentify_request)
-        
-        print("DLP API Deidentification Response:")
-        if hasattr(deidentify_response, 'overview') and hasattr(deidentify_response.overview, 'transformed_overview'):
-            for transformation in deidentify_response.overview.transformed_overview.transformation_summaries:
-                print(f"  Info type redacted: {transformation.info_type.name}")
-                print(f"  Occurrences: {transformation.transformed_count}")
-        else:
-            print("  No transformation overview available in the response.")
-        
-        print(f"Final redacted text: {deidentify_response.item.value}")
         return deidentify_response.item.value
     except Exception as e:
-        print(f"Error in deidentify_content: {str(e)}")
-        return None  # Return None instead of raising an exception
+        logger.error(f"Error in deidentify_content: {str(e)}")
+        return None
 
 @functions_framework.http
 def redact_sensitive_info(request):
     """HTTP Cloud Function for redacting sensitive information."""
+    origin = get_cors_origin(request)
     # Handle CORS
     if request.method == 'OPTIONS':
         headers = {
-            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Origin': origin,
             'Access-Control-Allow-Methods': 'POST',
             'Access-Control-Allow-Headers': 'Content-Type',
             'Access-Control-Max-Age': '3600'
@@ -308,40 +341,28 @@ def redact_sensitive_info(request):
         return ('', 204, headers)
 
     headers = {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': origin,
         'Content-Type': 'application/json'
     }
 
+    # Isolated request-scoped debug info list (never touches global builtins.print)
     debug_info = []
-
-    def capture_print(message):
-        debug_info.append(str(message))
 
     try:
         request_json = request.get_json()
-        print("Received request for redaction")
-        
         if not request_json:
-            print("No JSON data received in request")
+            logger.error("No JSON data received in request")
             return jsonify({'error': 'No JSON data received'}), 400, headers
 
         # Extract text to redact
         text = request_json.get('text')
         if not text:
-            print("No text provided for redaction")
+            logger.error("No text provided for redaction")
             return jsonify({'error': 'No text provided'}), 400, headers
-
-        # Redirect print statements to capture_print
-        import builtins
-        original_print = builtins.print
-        builtins.print = capture_print
 
         # Redact sensitive information using project ID from environment
         project_id = os.environ.get('DLP_PROJECT_ID', os.environ.get('PROJECT_ID', 'gemini-med-lit-review'))
-        redacted_text = deidentify_content(project_id, text)
-
-        # Restore original print function
-        builtins.print = original_print
+        redacted_text = deidentify_content(project_id, text, debug_info=debug_info)
 
         if redacted_text is None:
             return jsonify({
@@ -350,11 +371,10 @@ def redact_sensitive_info(request):
                 'debugInfo': debug_info
             }), 500, headers
 
-        # Extract identified info types from debug_info
-        identified_info_types = [line.split(': ')[1] for line in debug_info if line.startswith('Found ')]
-        
-        # Print identified info types
-        print(f"Identified info types: {identified_info_types}")
+        # Extract identified info types from debug_info safely
+        identified_info_types = list(dict.fromkeys(
+            line.replace('Found ', '').strip() for line in debug_info if line.startswith('Found ')
+        ))
 
         return jsonify({
             'success': True,
@@ -364,10 +384,8 @@ def redact_sensitive_info(request):
         }), 200, headers
 
     except Exception as e:
-        print(f"Error in redact_sensitive_info: {str(e)}")
-        # Restore original print function in case of exception
-        builtins.print = original_print
-        return jsonify({'error': str(e), 'debugInfo': debug_info}), 500, headers
+        logger.error(f"Error in redact_sensitive_info: {str(e)}")
+        return jsonify({'error': 'An internal error occurred.', 'debugInfo': []}), 500, headers
 
 
 if __name__ == "__main__":

@@ -52,55 +52,63 @@ const CustomTable = ({ children, title, isSpecialTable }) => {
   );
 };
 
+const renderFormattedText = (text) => {
+  if (typeof text !== 'string') return text;
+  
+  const combinedRegex = /(\[PMCID:\s*PMC\d+\s*\(\d+\)\]\(https:\/\/[^\)]+\)|\[PMID:\s*\d+\])/g;
+  if (combinedRegex.test(text)) {
+    const parts = text.split(combinedRegex);
+    return parts.map((part, index) => {
+      const pmcidMatch = part.match(/^\[PMCID:\s*(PMC\d+)\s*\((\d+)\)\]\((https:\/\/[^\)]+)\)$/);
+      if (pmcidMatch) {
+        return (
+          <a 
+            key={index}
+            href={pmcidMatch[3]}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-800 font-medium"
+          >
+            PMCID: {pmcidMatch[1]} ({pmcidMatch[2]})
+          </a>
+        );
+      }
+      const pmidMatch = part.match(/^\[PMID:\s*(\d+)\]$/);
+      if (pmidMatch) {
+        return (
+          <a 
+            key={index}
+            href={`https://pubmed.ncbi.nlm.nih.gov/${pmidMatch[1]}/`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-800 font-medium"
+          >
+            PMID: {pmidMatch[1]}
+          </a>
+        );
+      }
+      return part;
+    });
+  }
+
+  // Handle bullet points
+  if (text.includes('* ')) {
+    return (
+      <ul className="list-disc pl-4 space-y-1">
+        {text.split('* ').filter(Boolean).map((item, i) => (
+          <li key={i} className="text-gray-700">{item.trim()}</li>
+        ))}
+      </ul>
+    );
+  }
+
+  return text;
+};
+
 const CustomTableCell = ({ children, isHeader }) => {
   const content = React.Children.map(children, child => {
     if (typeof child === 'string') {
-      // Handle PMCID links in markdown format [PMCID: PMC12345 (2023)](https://...)
-      if (child.includes('[PMCID:')) {
-        const pmcidMatch = child.match(/\[PMCID:\s*(PMC\d+)\s*\((\d+)\)\]\((https:\/\/[^\)]+)\)/);
-        if (pmcidMatch) {
-          const pmcid = pmcidMatch[1];
-          const year = pmcidMatch[2];
-          const url = pmcidMatch[3];
-          return (
-            <a 
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:text-blue-800 font-medium"
-            >
-              PMCID: {pmcid} ({year})
-            </a>
-          );
-        }
-      }
-      // Handle PMID links
-      if (child.includes('[PMID:')) {
-        const pmidMatch = child.match(/\[PMID:\s*(\d+)\]/);
-        if (pmidMatch) {
-          const pmid = pmidMatch[1];
-          return (
-            <a 
-              href={`https://pubmed.ncbi.nlm.nih.gov/${pmid}/`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:text-blue-800 font-medium"
-            >
-              PMID: {pmid}
-            </a>
-          );
-        }
-      }
-      // Handle bullet points
-      if (child.includes('* ')) {
-        return (
-          <ul className="list-disc pl-4 space-y-1">
-            {child.split('* ').filter(Boolean).map((item, i) => (
-              <li key={i} className="text-gray-700">{item.trim()}</li>
-            ))}
-          </ul>
-        );
-      }
+      return renderFormattedText(child);
     }
     return child;
   });

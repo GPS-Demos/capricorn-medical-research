@@ -26,20 +26,41 @@ marked.setOptions({
   xhtml: false // Don't close empty tags with a slash
 });
 
+const escapeHtml = (str) => {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
+const sanitizeHtml = (html) => {
+  if (!html) return '';
+  return String(html)
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/on\w+\s*=\s*(["']).*?\1/gi, '')
+    .replace(/javascript:/gi, '');
+};
+
 const PrintButton = ({ content, title = 'Analysis Results' }) => {
   const handlePrint = () => {
-    // Create a new window
-    const printWindow = window.open('', '_blank');
+    // Create a new window with secure flags
+    const printWindow = window.open('', '_blank', 'noopener,noreferrer');
+    if (!printWindow) return;
+    printWindow.opener = null;
     
     // Convert markdown to HTML using marked
-    const renderedContent = marked.parse(content);
+    const renderedContent = sanitizeHtml(marked.parse(content));
+    const safeTitle = escapeHtml(title);
     
     // Add content to the new window with proper styling
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>${title}</title>
+          <title>${safeTitle}</title>
           <style>
             body {
               font-family: Arial, sans-serif;
@@ -136,7 +157,7 @@ const PrintButton = ({ content, title = 'Analysis Results' }) => {
           </style>
         </head>
         <body>
-          <h1>${title}</h1>
+          <h1>${safeTitle}</h1>
           <div class="content prose">
             ${renderedContent}
           </div>
