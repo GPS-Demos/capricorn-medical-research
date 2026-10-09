@@ -21,6 +21,10 @@ import json
 import logging
 import os
 
+# Gemini model configuration (gemini-3.7-flash is only served from the 'global' location)
+GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-3.7-flash')
+GEMINI_LOCATION = os.environ.get('GEMINI_LOCATION', 'global')
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -89,7 +93,7 @@ def process_lab(request):
         client = genai.Client(
             vertexai=True,
             project=os.environ.get('PROJECT_ID', 'gemini-med-lit-review'),
-            location=os.environ.get('LOCATION', 'global'),
+            location=GEMINI_LOCATION,
         )
 
         # Create the PDF document part
@@ -164,7 +168,7 @@ CHROMOSOME LEVEL ABERRATIONS
 - Chromosome/Arm: 7, Change: gain, DCR: ~1.5-1.7, Rationale: Consistent visual increase along the entire chromosome
 - Chromosome/Arm: 18, Change: gain, DCR: ~1.5-1.7, Rationale: Consistent visual increase along the entire chromosome""")
 
-        model = "gemini-2.5-flash"
+        model = GEMINI_MODEL
         contents = [
             types.Content(
                 role="user",

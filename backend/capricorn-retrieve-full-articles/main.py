@@ -24,6 +24,10 @@ import math
 import os
 from datetime import datetime
 
+# Gemini model configuration (gemini-3.7-flash is only served from the 'global' location)
+GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-3.7-flash')
+GEMINI_LOCATION = os.environ.get('GEMINI_LOCATION', 'global')
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -75,7 +79,7 @@ def fetch_journal_impact_data():
 client = genai.Client(
     vertexai=True,
     project=os.environ.get('GENAI_PROJECT_ID', 'gemini-med-lit-review'),
-    location=os.environ.get('LOCATION', 'us-central1'),
+    location=GEMINI_LOCATION,
 )
 bq_client = bigquery.Client(project=os.environ.get('BIGQUERY_PROJECT_ID', 'playground-439016'))
 
@@ -285,11 +289,11 @@ def analyze_with_gemini(article_text, pmcid, methodology_content=None, disease=N
     prompt += "\n\nIMPORTANT: Return ONLY the raw JSON object. Do not include any explanatory text, markdown formatting, or code blocks. The response should start with '{' and end with '}' with no other characters before or after."
     
     # Configure Gemini with default safe settings (no OFF overrides)
-    model = "gemini-2.0-flash-001"
+    model = GEMINI_MODEL
     generate_content_config = types.GenerateContentConfig(
         temperature=0,
         top_p=0.95,
-        max_output_tokens=8192,
+        max_output_tokens=65535,
         response_modalities=["TEXT"],
     )
     

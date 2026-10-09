@@ -5,6 +5,10 @@ from google.genai import types
 import logging
 import os
 
+# Gemini model configuration (gemini-3.7-flash is only served from the 'global' location)
+GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-3.7-flash')
+GEMINI_LOCATION = os.environ.get('GEMINI_LOCATION', 'global')
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -29,7 +33,7 @@ def get_cors_origin(req):
 client = genai.Client(
     vertexai=True,
     project=os.environ.get('PROJECT_ID'),
-    location=os.environ.get('LOCATION'),
+    location=GEMINI_LOCATION,
 )
 
 SYSTEM_INSTRUCTION = """You are an expert pediatric oncologist and chair of the International Leukemia Tumor Board (iLTB). Your role is to analyze patient case notes and identify the primary disease being discussed.
@@ -80,13 +84,13 @@ def extract_disease(request):
         ]
 
         # Configure Gemini model
-        model = "gemini-2.0-flash-001"
+        model = GEMINI_MODEL
         generate_content_config = types.GenerateContentConfig(
             system_instruction=SYSTEM_INSTRUCTION,
             temperature=0.2,
             top_p=0.95,
             candidate_count=1,
-            max_output_tokens=8192,
+            max_output_tokens=65535,
             response_modalities=["TEXT"],
         )
 

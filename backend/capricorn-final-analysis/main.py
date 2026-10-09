@@ -23,6 +23,10 @@ import logging
 import os
 from datetime import datetime
 
+# Gemini model configuration (gemini-3.7-flash is only served from the 'global' location)
+GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-3.7-flash')
+GEMINI_LOCATION = os.environ.get('GEMINI_LOCATION', 'global')
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -48,7 +52,7 @@ vertexai.init(project=os.environ.get('GENAI_PROJECT_ID', 'gemini-med-lit-review'
 genai_client = genai.Client(
     vertexai=True,
     project=os.environ.get('GENAI_PROJECT_ID', 'gemini-med-lit-review'),
-    location=os.environ.get('LOCATION', 'us-central1'),
+    location=GEMINI_LOCATION,
 )
 bq_client = bigquery.Client(project=os.environ.get('BIGQUERY_PROJECT_ID', 'playground-439016'))
 
@@ -228,11 +232,11 @@ IMPORTANT: Return the analysis in markdown format with the specified table struc
 
 def analyze_with_gemini(prompt):
     """Analyze the case and articles using Gemini with default safe configurations."""
-    model = "gemini-2.0-flash-001"
+    model = GEMINI_MODEL
     generate_content_config = types.GenerateContentConfig(
         temperature=0,
         top_p=0.95,
-        max_output_tokens=8192,
+        max_output_tokens=65535,
         response_modalities=["TEXT"],
     )
     

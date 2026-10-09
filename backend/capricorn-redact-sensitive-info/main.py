@@ -24,6 +24,10 @@ import os
 
 import logging
 
+# Gemini model configuration (gemini-3.7-flash is only served from the 'global' location)
+GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-3.7-flash')
+GEMINI_LOCATION = os.environ.get('GEMINI_LOCATION', 'global')
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -51,7 +55,7 @@ dlp_client = dlp_v2.DlpServiceClient()
 client = genai.Client(
     vertexai=True,
     project=os.environ.get('PROJECT_ID', 'gemini-med-lit-review'),
-    location=os.environ.get('LOCATION', 'us-central1'),
+    location=GEMINI_LOCATION,
 )
 
 def get_info_types():
@@ -221,12 +225,12 @@ def standardize_date(date_string):
     generate_content_config = types.GenerateContentConfig(
         temperature=0,
         top_p=1,
-        max_output_tokens=20,
+        max_output_tokens=1024,
         response_modalities=["TEXT"],
     )
     
     response = client.models.generate_content(
-        model="gemini-2.0-flash-001",
+        model=GEMINI_MODEL,
         contents=contents,
         config=generate_content_config
     )

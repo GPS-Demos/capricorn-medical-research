@@ -267,6 +267,7 @@ const handleExtract = async () => {
                 processedArticlesCount: processedArticles.length,
                 currentProgress: currentProgress,
                 articlesData: processedArticles
+              });
               const documentsContent = {
                 type: 'document',
                 content: {
