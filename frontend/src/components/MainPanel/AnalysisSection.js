@@ -37,7 +37,7 @@ const AnalysisSection = ({
   isLoadingFromHistory,
   isProcessingArticles
 }) => {
-  const [isRetrievalComplete, setIsRetrievalComplete] = useState(false);
+  const [, setIsRetrievalComplete] = useState(false);
   const [showProcessingMessage, setShowProcessingMessage] = useState(false);
 
 useEffect(() => {

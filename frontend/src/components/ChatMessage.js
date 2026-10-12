@@ -14,8 +14,7 @@
 
 // src/components/ChatMessage.js
 
-import React, { useState, forwardRef } from 'react';
-import { AlertCircle } from 'lucide-react';
+import React, { useState } from 'react';
 import ArticleResults from './MainPanel/ArticleResults';
 import ReactMarkdown from 'react-markdown';
 
@@ -61,7 +60,6 @@ const ChatMessage = React.forwardRef(({ message, showInitialCase }, ref) => {
   const isError = message.text && message.text.includes("I'm sorry, there was an error");
   const isDocument = message.type === 'document';
   const isAnalysis = message.analysis !== undefined;
-  const hideAssistantHeader = message.initialCase || isAnalysis;
 
   if (message.initialCase) {
     return <InitialCaseMessage message={message} show={showInitialCase} />;

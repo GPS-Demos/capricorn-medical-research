@@ -29,13 +29,10 @@ import { useAuth } from './hooks/useAuth';
 import useChat from './hooks/useChat';
 
 // API
-import { generateSampleCase, extractDisease, extractEvents, retrieveAndAnalyzeArticles, generateFinalAnalysis, sendFeedback } from './utils/api';
+import { generateSampleCase, extractDisease, extractEvents, retrieveAndAnalyzeArticles, generateFinalAnalysis } from './utils/api';
 
 // Preset Data
-import { extractionPrompt, promptContent, presetCaseNotes, presetLabResults } from './data/presetData';
-
-// Utilities
-const createMessageId = (type) => `${Date.now()}-${type}-${Math.random().toString(36).substr(2, 9)}`;
+import { extractionPrompt, promptContent } from './data/presetData';
 
 const MedicalAssistantUI = () => {
   const [showIntendedUse, setShowIntendedUse] = useState(true);
@@ -44,14 +41,14 @@ const MedicalAssistantUI = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [extractedDisease, setExtractedDisease] = useState('');
   const [extractedEvents, setExtractedEvents] = useState([]);
-  const [isBox2Hovered, setIsBox2Hovered] = useState(false);
+  const [, setIsBox2Hovered] = useState(false);
   const [isBox3Hovered, setIsBox3Hovered] = useState(false);
   const [isRetrieving, setIsRetrieving] = useState(false);
   const [isProcessingArticles, setIsProcessingArticles] = useState(false);
   const [articles, setArticles] = useState([]);
   const [currentProgress, setCurrentProgress] = useState('');
-  const [pmcids, setPmcids] = useState([]);
-  const [totalArticles, setTotalArticles] = useState(0);
+  const [, setPmcids] = useState([]);
+  const [, setTotalArticles] = useState(0);
   const [currentArticleData, setCurrentArticleData] = useState(null);
   const [isPromptExpanded, setIsPromptExpanded] = useState(true);
   const [numArticles, setNumArticles] = useState(15);
@@ -187,11 +184,6 @@ const handleExtract = async () => {
     setIsProcessing(false);
   }
 };
-
-  const handleExampleLoad = (exampleCaseNotes, exampleLabResults) => {
-    setCaseNotes(exampleCaseNotes);
-    setLabResults(exampleLabResults);
-  };
 
   const handleClearAll = useCallback(() => {
     setCaseNotes('');
@@ -344,7 +336,6 @@ const handleExtract = async () => {
             console.log('Progress:', { articleNumber, totalArticles, processedArticlesLength: processedArticles.length });
             
             if (articleNumber > 0 && totalArticles > 0) {
-              const progress = (articleNumber / totalArticles) * 100;
               setCurrentProgress(`Processed article ${articleNumber} out of ${totalArticles}`);
             }
           }

@@ -14,9 +14,8 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { redactSensitiveInfo, processLabPDF } from '../../utils/api';
-import LoadingSpinner from '../LoadingSpinner';
 import { presetCaseNotes, presetLabResults } from '../../data/presetData';
-import { Mic, MicOff, AlertTriangle, ArrowRight, Upload } from 'lucide-react';
+import { Mic, MicOff, AlertTriangle, ArrowRight } from 'lucide-react';
 import useDebounce from '../../hooks/useDebounce';
 import LabInputModal from '../Modal/LabInputModal';
 
@@ -46,7 +45,7 @@ const CaseInputSection = ({
   const [localCaseNotes, setLocalCaseNotes] = useState('');
   const [localLabResults, setLocalLabResults] = useState('');
   const [isProcessingPDF, setIsProcessingPDF] = useState(false);
-  const [pdfFileName, setPdfFileName] = useState('');
+  const [, setPdfFileName] = useState('');
   const [showLabInputChoiceModal, setShowLabInputChoiceModal] = useState(false);
   const caseNotesRef = useRef(null);
   const labResultsRef = useRef(null);
@@ -197,11 +196,10 @@ const CaseInputSection = ({
         
         try {
           // Redact both case notes and lab results
-          const redactedCaseNotes = await handleRedaction(localCaseNotes, setCaseNotes);
-          let redactedLabResults = localLabResults;
+          await handleRedaction(localCaseNotes, setCaseNotes);
           
           if (localLabResults.trim()) {
-            redactedLabResults = await handleRedaction(localLabResults, setLabResults);
+            await handleRedaction(localLabResults, setLabResults);
           }
           
           // Ensure state is updated with redacted values before extraction

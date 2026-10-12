@@ -14,7 +14,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, MessageSquare, Plus, Pencil, Trash2 } from 'lucide-react';
-import { getUserChats, deleteChat, updateChatTitle, createNewChat, getChatDocumentsRealTime } from '../firebase';
+import { deleteChat, updateChatTitle, getChatDocumentsRealTime } from '../firebase';
 
 const formatChatTitle = (chat) => {
   if (chat.title) return chat.title;
@@ -38,7 +38,6 @@ const formatChatTitle = (chat) => {
 };
 
 const ChatHistoryItem = ({ chat, isActive, onClick, onRename, onDelete }) => {
-  const [showOptions, setShowOptions] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
   const [newTitle, setNewTitle] = useState(chat.title || '');
 

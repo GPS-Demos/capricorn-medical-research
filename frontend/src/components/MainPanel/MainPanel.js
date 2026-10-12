@@ -13,7 +13,6 @@
 // limitations under the License.
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { findLastIndex } from 'lodash';
 import ChatContainer from '../Chat/ChatContainer';
 import CaseInputSection from './CaseInputSection';
 import WelcomeText from './WelcomeText';
@@ -63,7 +62,7 @@ const MainPanel = ({
   isProcessingArticles,
   setIsProcessingArticles
 }) => {
-  const [hasAnalysisMessage, setHasAnalysisMessage] = useState(false);
+  const [, setHasAnalysisMessage] = useState(false);
   const [shouldUseScrollEffect, setShouldUseScrollEffect] = useState(false);
   const [showInitialCase, setShowInitialCase] = useState(false);
 
@@ -89,17 +88,11 @@ const MainPanel = ({
     return () => unsubscribe();
   }, [auth.currentUser]);
   const [showWelcomeText, setShowWelcomeText] = useState(true);
-  const [isBox2Hovered, setIsBox2Hovered] = useState(false);
-  const [isExtractionSectionExpanded, setIsExtractionSectionExpanded] = useState(false);
   const [isPromptExpanded, setIsPromptExpanded] = useState(false);
   const [showCaseInput, setShowCaseInput] = useState(true);
   const finalAnalysisRef = useRef(null);
   const messageEndRef = useRef(null);
   const chatContainerRef = useRef(null);
-
-  const findLastMessageIndex = useCallback((history) => {
-    return findLastIndex(history, msg => msg.type === 'message');
-  }, []);
 
   const handleExtractWithWelcomeText = useCallback(() => {
     setShowWelcomeText(false);

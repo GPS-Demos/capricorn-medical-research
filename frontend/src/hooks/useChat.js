@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { handleSendMessage } from './chat/messageHandlers';
 import { initializeActiveChat, initializeNewChat, handleChatSelect } from './chat/chatState';
 import { deleteChat } from '../firebase';

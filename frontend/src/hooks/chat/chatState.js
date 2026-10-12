@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { createNewChat, getChatMessages, getDoc } from '../../firebase';
+import { createNewChat, getChatMessages } from '../../firebase';
 import { createMessageId } from './messageHandlers';
-import { getLatestMessages } from './utils';
 
 export const initializeActiveChat = async ({
   user,

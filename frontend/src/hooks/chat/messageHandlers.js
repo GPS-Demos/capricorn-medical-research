@@ -82,7 +82,6 @@ const handleAnalysisOrDocumentMessage = async ({
 }) => {
   try {
     let currentChatId = activeChat?.id;
-    let messagesForFirestore = [...(activeChat?.messages || [])];
 
     if (!currentChatId) {
       const initialMessages = [];

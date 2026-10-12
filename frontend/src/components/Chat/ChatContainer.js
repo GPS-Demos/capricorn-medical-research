@@ -13,16 +13,13 @@
 // limitations under the License.
 
 // src/components/Chat/ChatContainer.js
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ChatMessage from '../ChatMessage';
-import DocumentList from '../DocumentList';
 import MarkdownRenderer from '../MarkdownRenderer';
-import ReactMarkdown from 'react-markdown';
 import ArticleResults from '../MainPanel/ArticleResults';
 import ExtractionSection from '../MainPanel/ExtractionSection';
 import AnalysisSection from '../MainPanel/AnalysisSection';
 import ChatInput from '../ChatInput';
-import CopyButton from '../CopyButton';
 import PrintButton from '../PrintButton';
 
 const LoadingSpinner = ({ message }) => {
@@ -131,10 +128,6 @@ const ChatContainer = ({
         <div className="space-y-4">
           {chatHistory.map((msg, index) => {
             const isInitialCaseMessage = msg.initialCase && index === 0;
-            // Find the next analysis message that follows this message
-            const nextAnalysis = chatHistory.slice(index + 1).find(m => m.analysis);
-            // Find if there's a document message after this one
-            const nextDocument = chatHistory.slice(index + 1).find(m => m.type === 'document');
             
             return (
               <React.Fragment key={msg.id}>
