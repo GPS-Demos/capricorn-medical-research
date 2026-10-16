@@ -169,17 +169,9 @@ const ExpandableSidebar = ({ user, onChatSelect, activeChat, initializeNewChat, 
 const handleNewChat = async () => {
   if (user) {
     try {
-      const chatId = await initializeNewChat();
-      const newChat = {
-        id: chatId,
-        createdAt: {
-          seconds: Math.floor(Date.now() / 1000),
-          nanoseconds: 0
-        },
-        messages: []
-      };
-      setChats(prevChats => [newChat, ...prevChats]);
-      onChatSelect(newChat);
+      // Resets the workspace. The Firestore chat document is only created
+      // later (on extraction), so there is no chat ID to select here.
+      await initializeNewChat();
       onToggle(false); // Minimize sidebar after creating new chat
     } catch (error) {
       console.error('Error creating new chat:', error);
@@ -279,18 +271,12 @@ const WrappedExpandableSidebar = ({
   const wrappedHandleNewChat = async () => {
     if (otherProps.user) {
       try {
-        const chatId = await otherProps.initializeNewChat();
-        const newChat = {
-          id: chatId,
-          createdAt: {
-            seconds: Math.floor(Date.now() / 1000),
-            nanoseconds: 0
-          },
-          messages: []
-        };
-        wrappedOnChatSelect(newChat);
-        otherProps.onToggle(false); // Minimize sidebar after creating new chat
-        return chatId;
+        // initializeNewChat only resets local state (no Firestore doc is
+        // created until extraction), so select "no chat" instead of a chat
+        // with an undefined id, which would fail ID validation.
+        await otherProps.initializeNewChat();
+        wrappedOnChatSelect(null);
+        return null;
       } catch (error) {
         console.error('Error creating new chat');
       }

@@ -89,7 +89,7 @@ export const handleChatSelect = async ({
   initializeNewChat,
   userId
 }) => {
-  if (chat) {
+  if (chat?.id) {
     setActiveChat(chat);
     setHasDocumentMessages(false);
     
